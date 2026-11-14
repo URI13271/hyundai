@@ -25,7 +25,10 @@
 
 Ruby 3.2 이상이 필요하다. `Data.define`이 3.2부터 있다.
 
+저장소 루트에서 실행한다. 루트는 `bin/`, `lib/`, `views/`가 같이 있는 폴더다. 다른 폴더에서 치면 `bin/drive_talk`을 찾지 못한다.
+
 ```sh
+cd /path/to/hyundai
 ruby bin/drive_talk
 ```
 
