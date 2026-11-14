@@ -44,6 +44,7 @@ POST   /v1/sessions/:id/begin
 POST   /v1/sessions/:id/hear      { "choice": "a" }
 POST   /v1/sessions/:id/next
 POST   /v1/sessions/:id/replay
+POST   /v1/sessions/:id/ready
 DELETE /v1/sessions/:id
 ```
 
@@ -63,9 +64,11 @@ DELETE /v1/sessions/:id
 
 `screen`은 `home`, `shuffle`, `seats`, `read`, `answer`, `done` 중 하나다. 화면은 이 값으로 무엇을 그릴지 정한다.
 
-`hear`는 현재 차례가 있을 때만 받는다. 없으면 409. `begin`은 참여 좌석이 0이면 422.
+`hear`는 현재 차례가 있을 때만 받는다. 없으면 409. `choice`는 `a`, `b`, 또는 현재 장의 보기 문장이다. 보기가 아니면 400. `begin`은 참여 좌석이 0이면 422.
 
 `replay`는 질문을 다시 읽는 신호다. 음성 합성은 차량 TTS에 맡긴다. 이 API는 “다시 읽어라”만 알린다.
+
+`ready`는 섞기 또는 낭독이 끝났다는 신호다. `shuffle`이면 `seats`, `read`면 `answer`. 다른 화면이면 409.
 
 ## 덱
 

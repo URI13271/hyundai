@@ -3,3 +3,5 @@
 *.swo
 /tmp/
 docs/study/
+/backend/target/
+/backend/data/

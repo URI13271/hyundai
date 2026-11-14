@@ -21,3 +21,32 @@ ruby /path/to/hyundai/bin/drive_talk
 
 화면 위 라이트·다크·가로·세로는 이 브라우저에만 남는다.
 
+## API 서버
+
+덱·판·기록은 `backend`다. 화면 서버는 아직 목 세션이다. `DRIVE_TALK_API` 연결은 나중에 한다.
+
+```sh
+cd backend
+cargo run --offline
+# http://127.0.0.1:8080
+```
+
+`PORT`로 포트를 바꾼다. `BIND` 기본값은 `127.0.0.1`이다. 덱은 `DRIVE_TALK_DECK`(기본 `deck.json`). 파일이 없으면 바이너리에 넣은 같은 10장이다. 진행 중인 판은 `DRIVE_TALK_DATA`(기본 `data`)의 `sessions`에 남고, 프로세스를 다시 켜도 그 판은 그대로다.
+
+## 같이 띄우기
+
+화면과 API는 프로세스 둘이다. 터미널도 둘이다. 포트를 따로 쓴다. 한 셸의 `PORT`를 같이 쓰면 둘 다 그 포트에 붙으려다 하나가 죽는다.
+
+```sh
+# 터미널 1, 저장소 루트. 화면.
+ruby bin/drive_talk
+# http://127.0.0.1:4567
+
+# 터미널 2
+cd backend
+cargo run --offline
+# http://127.0.0.1:8080
+```
+
+브라우저는 4567만 연다. 8080은 판 API다. 화면은 아직 쿠키 목 세션이라, API를 켜 둬도 게임 기록은 그쪽으로 가지 않는다.
+
