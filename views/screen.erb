@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>드라이브 토크</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <link rel="stylesheet" href="/assets/adaptive.css">
+</head>
+<body class="<%= body_class %>" data-demo="<%= @demo ? "1" : "0" %>">
+  <div class="stage">
+    <nav class="prefs" aria-label="화면 설정">
+      <a class="<%= "is-on" if on?(:theme, "light") %>" href="<%= pref("theme", "light") %>">라이트</a>
+      <a class="<%= "is-on" if on?(:theme, "dark") %>" href="<%= pref("theme", "dark") %>">다크</a>
+      <a class="<%= "is-on" if on?(:theme, "system") %>" href="<%= pref("theme", "system") %>">시스템</a>
+      <span class="sep">·</span>
+      <a class="<%= "is-on" if on?(:layout, "auto") %>" href="<%= pref("layout", "auto") %>">자동</a>
+      <a class="<%= "is-on" if on?(:layout, "landscape") %>" href="<%= pref("layout", "landscape") %>">가로</a>
+      <a class="<%= "is-on" if on?(:layout, "portrait") %>" href="<%= pref("layout", "portrait") %>">세로</a>
+    </nav>
+
+    <main class="device" data-screen="<%= @game.screen %>"<%= %( data-settle="1") if @fresh %>>
+      <%- if header? -%>
+        <header class="top">
+          <%- if %i[mic shuffle seats read answer].include?(@game.screen) -%>
+            <form method="post" action="<%= back_action %>">
+              <button class="back" aria-label="뒤로"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 5.5 L8 12 L14.5 18.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </form>
+          <%- end -%>
+          <p class="brand">드라이브 토크</p>
+        </header>
+      <%- end -%>
+
+      <%- case @game.screen -%>
+      <%- when :splash -%>
+        <section class="center" data-auto="/enter" data-delay="1500">
+          <div class="logo" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="64" height="64"><rect x="8" y="16" width="30" height="22" rx="8" fill="#F08A3E"/><path d="M16 38 L14 48 L28 38 Z" fill="#F08A3E"/><rect x="26" y="24" width="28" height="20" rx="8" fill="#4C8DFF"/><path d="M46 44 L50 52 L36 44 Z" fill="#4C8DFF"/></svg>
+          </div>
+          <h1>드라이브 토크</h1>
+          <p>차 안 취향 저울, 시작해 볼까요?</p>
+        </section>
+
+      <%- when :home -%>
+        <%- q = DriveTalk::Deck.sample -%>
+        <section class="home">
+          <div class="copy">
+            <div class="logo sm" aria-hidden="true">
+              <svg viewBox="0 0 64 64" width="48" height="48"><rect x="8" y="16" width="30" height="22" rx="8" fill="#F08A3E"/><path d="M16 38 L14 48 L28 38 Z" fill="#F08A3E"/><rect x="26" y="24" width="28" height="20" rx="8" fill="#4C8DFF"/><path d="M46 44 L50 52 L36 44 Z" fill="#4C8DFF"/></svg>
+            </div>
+            <h2>밸런스게임</h2>
+            <p class="sub">둘 중 하나, 말로 골라요.<br>누가 뭘 골랐는지 파란별로 읽어 줄게요.</p>
+            <div class="chips"><span class="chip">#질문카드 10장</span><span class="chip">#최대 4명</span></div>
+            <form method="post" action="/start"><button class="btn dark" data-need-mic>게임 시작</button></form>
+            <p class="voice"><svg class="mic" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5.5-3a5.5 5.5 0 0 1-11 0H5a7 7 0 0 0 6.25 6.93V21h1.5v-3.07A7 7 0 0 0 19 11h-1.5z"/></svg> “게임 시작” 이라고 말해도 돼요</p>
+          </div>
+          <div class="preview">
+            <article class="qcard">
+              <p class="qmeta">Q1 · #<%= q.tag %></p>
+              <h3 class="qtitle"><%= q.title %></h3>
+              <div class="options">
+                <div class="opt opt-a"><span class="badge">A</span><%= q.a %></div>
+                <span class="vs">VS</span>
+                <div class="opt opt-b"><span class="badge">B</span><%= q.b %></div>
+              </div>
+            </article>
+            <p class="stack-note">매번 랜덤으로 섞이는 질문 10장</p>
+          </div>
+        </section>
+
+      <%- when :mic -%>
+        <section class="center">
+          <div class="mic-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 11a5.5 5.5 0 0 0 11 0M12 16.5v4M9 20.5h6M5 5l14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <h2>마이크를 켜 주세요</h2>
+          <p>말로 고르려면 마이크를 허용해 주세요.</p>
+          <form method="post" action="/mic/open"><button class="btn dark">설정 열기</button></form>
+          <form method="post" action="/home"><button class="link">홈으로</button></form>
+        </section>
+
+      <%- when :shuffle -%>
+        <section class="center" data-auto="/ready" data-delay="1400">
+          <div class="spin" aria-hidden="true"></div>
+          <h2>질문 카드 섞는 중…</h2>
+          <p>오늘은 어떤 질문이 나올까요?</p>
+        </section>
+
+      <%- when :seats -%>
+        <section class="prep">
+          <div class="copy">
+            <span class="pill live"><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>마이크 ON · <%= @game.joined_count %>명 참여</span>
+            <h2>참여하는 자리를 확인해요</h2>
+            <p class="sub">자리를 눌러서 참여 / 미참여를 바꿀 수 있어요.</p>
+            <%- if @game.notice -%><p class="notice"><%= @game.notice %></p><%- end -%>
+            <form method="post" action="/begin"><button class="btn dark">시작</button></form>
+            <p class="voice"><svg class="mic" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5.5-3a5.5 5.5 0 0 1-11 0H5a7 7 0 0 0 6.25 6.93V21h1.5v-3.07A7 7 0 0 0 19 11h-1.5z"/></svg> “시작!” 이라고 말해도 돼요</p>
+          </div>
+          <aside class="seat-panel">
+            <p class="side-cap">앞 · <%= @game.joined_count %>명 참여</p>
+            <form method="post" action="/seat" class="seat-grid">
+              <%- @game.seats.each do |seat| -%>
+                <button class="seat <%= seat_class(seat) %>" name="id" value="<%= seat[:id] %>">
+                  <%- if seat[:driver] -%><span class="drive-mark" aria-hidden="true">+</span><%- end -%>
+                  <b><%= seat[:name] %></b>
+                  <small><%= seat_state(seat) %></small>
+                </button>
+              <%- end -%>
+            </form>
+          </aside>
+        </section>
+
+      <%- when :read, :answer -%>
+        <%- q = @game.question -%>
+        <%- counts = @game.counts -%>
+        <%- kind, text = pill -%>
+        <section class="play">
+          <div class="play-top">
+            <div class="meta">
+              <p class="qmeta">Q<%= @game.index + 1 %>/<%= @game.deck.length %> · #<%= q.tag %></p>
+              <div class="bar" aria-hidden="true"><i style="width: <%= @game.progress.round %>%"></i></div>
+            </div>
+            <span class="pill is-<%= kind %>">
+              <%- if kind == "live" -%><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <%- elsif kind == "read" -%><i class="dot"></i>
+              <%- else -%><i class="dot ink"></i><%- end -%>
+              <%= text %>
+            </span>
+          </div>
+          <div class="play-body">
+            <article class="qcard">
+              <h2 class="qtitle"><%= q.title %></h2>
+              <%- if @game.screen == :answer -%>
+                <form method="post" action="/hear" class="options">
+                  <button class="opt opt-a" name="choice" value="a"><span class="badge">A</span><%= q.a %><span class="tally<%= " is-hot" if hot?(counts[:a]) %>"><%= counts[:a] %>명</span></button>
+                  <span class="vs">VS</span>
+                  <button class="opt opt-b" name="choice" value="b"><span class="badge">B</span><%= q.b %><span class="tally<%= " is-hot" if hot?(counts[:b]) %>"><%= counts[:b] %>명</span></button>
+                </form>
+              <%- else -%>
+                <div class="options">
+                  <div class="opt opt-a"><span class="badge">A</span><%= q.a %><span class="tally">0명</span></div>
+                  <span class="vs">VS</span>
+                  <div class="opt opt-b"><span class="badge">B</span><%= q.b %><span class="tally">0명</span></div>
+                </div>
+              <%- end -%>
+            </article>
+            <aside class="seat-panel">
+              <p class="side-cap">앞 · <%= @game.joined_count %>명 참여</p>
+              <div class="seat-grid">
+                <%- @game.seats.each do |seat| -%>
+                  <div class="seat <%= seat_class(seat) %>">
+                    <%- if seat[:driver] -%><span class="drive-mark" aria-hidden="true">+</span><%- end -%>
+                    <b><%= seat[:name] %></b>
+                    <small><%= seat_state(seat) %></small>
+                  </div>
+                <%- end -%>
+              </div>
+            </aside>
+          </div>
+          <footer class="foot">
+            <p class="voice"><svg class="mic" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5.5-3a5.5 5.5 0 0 1-11 0H5a7 7 0 0 0 6.25 6.93V21h1.5v-3.07A7 7 0 0 0 19 11h-1.5z"/></svg> “다음!” 이라고 말하면 넘어가요</p>
+            <div class="actions">
+              <form method="post" action="/replay"><button class="link" <%= "disabled" if locked? %>>질문 다시 듣기</button></form>
+              <form method="post" action="/next"><button class="btn dark" <%= "disabled" if locked? %>>다음</button></form>
+            </div>
+          </footer>
+        </section>
+        <%- if @game.screen == :read -%><div hidden data-auto="/ready" data-delay="2000"></div><%- end -%>
+
+      <%- when :done -%>
+        <%- tally = @game.tally -%>
+        <section class="done">
+          <div class="copy">
+            <h2><%= tally[:rounds].length %>장을 골랐어요</h2>
+            <p class="sub"><%= score_line(tally) %></p>
+            <div class="actions">
+              <form method="post" action="/again"><button class="btn dark">다시 하기</button></form>
+              <form method="post" action="/home"><button class="link">홈으로</button></form>
+            </div>
+          </div>
+          <div class="rounds">
+            <%- tally[:rounds].each do |row| -%>
+              <article class="round">
+                <b>#<%= row[:tag] %></b>
+                <span><%= row[:title] %></span>
+                <p class="score"><em class="<%= "win-a" if row[:a] > row[:b] %>"><%= row[:a_label] %> <%= row[:a] %></em> · <em class="<%= "win-b" if row[:b] > row[:a] %>"><%= row[:b_label] %> <%= row[:b] %></em></p>
+              </article>
+            <%- end -%>
+          </div>
+        </section>
+      <%- end -%>
+
+      <%- if @game.leave? -%>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+          <div class="dialog">
+            <h2 id="leave-title">게임을 끝낼까요?</h2>
+            <p>지금 나가면 이 판의 기록은 사라져요.</p>
+            <div class="actions">
+              <form method="post" action="/stay"><button class="link">계속하기</button></form>
+              <form method="post" action="/quit"><button class="btn dark">나가기</button></form>
+            </div>
+          </div>
+        </div>
+      <%- end -%>
+    </main>
+  </div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
