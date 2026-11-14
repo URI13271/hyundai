@@ -21,4 +21,3 @@ ruby /path/to/hyundai/bin/drive_talk
 
 화면 위 라이트·다크·가로·세로는 이 브라우저에만 남는다.
 
-Ruby로 이 화면을 읽는 교재는 [docs/study/README.md](docs/study/README.md)다. 문법, 요청이 HTML이 되는 길, 다음 앱에 남길 파일 역할이 있다.
