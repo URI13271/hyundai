@@ -61,7 +61,13 @@ ruby bin/drive_talk_all
   ```
 - 에뮬레이터를 켜려면 SDK Manager → SDK Tools에서 Android Emulator hypervisor driver를 깐다. BIOS에서 가상화(VT-x 또는 AMD-V)가 켜져 있어야 한다.
 - Pleos 차량 SDK는 Pleos 저장소(`https://nexus-playground.pleos.ai/repository/maven-releases/`)에서 받는다. `android/settings.gradle.kts`에 적혀 있다.
-- 앱은 좌석 착석 정보를 읽으려고 `pleos.car.permission.CAR_SEATS` 권한을 쓴다. 차량 서비스가 없는 기기에서는 착석 정보 없이 손으로 좌석을 고르는 그대로 돈다.
+- 앱은 좌석 착석 정보를 읽으려고 `pleos.car.permission.CAR_SEATS` 권한을 쓴다. Pleos SDK가 `ai.pleos.playground.service.vehicle.VEHICLE_BINDING` 권한을 더 붙인다. 차량 서비스가 없는 기기에서는 착석 정보 없이 손으로 좌석을 고르는 그대로 돈다.
+- 착석 정보를 쓰는 것은 `standalone`뿐이다. 매니페스트를 두 앱이 같이 써서 `client`(`drive-talk-client.apk`)에도 `CAR_SEATS`와 `VEHICLE_BINDING` 권한이 들어가지만, `client`는 착석 정보를 읽지 않는다.
+
+확인한 것과 아직 확인하지 못한 것은 다음과 같다.
+
+- 확인함: 코틀린 백엔드 테스트 16개(`./gradlew :backend:test`) 통과, 두 APK 빌드.
+- 아직 확인 전: Pleos Connect 에뮬레이터나 차량에서 착석 센서가 실제로 좌석 참여를 바꾸는지.
 
 ## 개발에 사용한 Pleos Connect 에뮬레이터 버전과 화면 규격
 
