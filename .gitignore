@@ -5,4 +5,9 @@
 docs/study/
 /backend/target/
 /backend/data/
+/android/.gradle/
+/android/.kotlin/
+/android/.idea/
+/android/local.properties
 /android/build/
+/android/*/build/

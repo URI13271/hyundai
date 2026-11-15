@@ -31,21 +31,38 @@ ruby /path/to/hyundai/bin/drive_talk
 
 ## 안드로이드 앱
 
-APK는 둘이다. 저장소 루트에서 만든다. 안드로이드 SDK(build-tools, platform)와 JDK 11 이상이 있어야 한다. Gradle은 쓰지 않는다.
+`android/`는 안드로이드 스튜디오 프로젝트다. 안드로이드 스튜디오에서 이 폴더를 열고 실행 버튼을 누른다. 빌드 변형(Build Variants)에서 `standaloneDebug`와 `clientDebug`를 고른다.
+
+- `standalone` 서버 없이 도는 앱. 화면과 코틀린 백엔드가 앱 안에 있다. 권한은 없다.
+- `client` 화면 서버에 붙는 앱. 처음에 서버 주소를 묻는다. `ruby bin/drive_talk_all`이 떠 있는 기기의 주소를 `http://192.168.0.10:4567`처럼 적는다. 뒤로 가기를 누르면 주소를 바꿀 수 있다.
+
+터미널에서는 `android` 폴더에서 한다. JDK 17 이상과 안드로이드 SDK가 있어야 한다.
 
 ```sh
-ruby android/build.rb
-# android/build/drive-talk-standalone.apk  서버 없이 도는 앱
-# android/build/drive-talk-client.apk      화면 서버에 붙는 앱
+cd android
+./gradlew :backend:test                  # 코틀린 백엔드 테스트
+./gradlew :app:assembleStandaloneDebug   # app/build/outputs/apk/standalone/debug/
+./gradlew :app:assembleClientDebug       # app/build/outputs/apk/client/debug/
 ```
 
-서버 없이 도는 앱은 화면과 판이 앱 안에 있다. `lib/drive_talk/game.rb`를 `android/standalone/web/game.js`로 옮긴 것이고, 덱은 만들 때 `backend/deck.json`을 넣는다. 판은 기기에 남아 앱을 다시 켜도 이어진다. 권한은 없다.
+만들어 둔 APK는 `android/apk/`에 있다. 소스를 고치면 다시 만들어 이 폴더의 파일을 바꾼다. 둘 다 디버그 열쇠로 서명한다. 기기에는 `adb install android/apk/drive-talk-standalone.apk`로 넣는다.
 
-화면 서버에 붙는 앱은 처음에 서버 주소를 묻는다. `ruby bin/drive_talk_all`이 떠 있는 기기의 주소를 `http://192.168.0.10:4567`처럼 적는다. 뒤로 가기를 누르면 주소를 바꿀 수 있다.
+### 코틀린 백엔드
 
-둘 다 디버그 열쇠로 서명한다. 기기에는 `adb install android/build/drive-talk-standalone.apk`로 넣는다.
+`android/backend`는 러스트 `backend`를 코틀린으로 옮긴 것이다. 덱을 섞고, 좌석과 차례와 선택을 맡고, 판을 파일로 남긴다. [BACKEND.md](BACKEND.md)의 API와 주소, 응답, 거절(409, 400, 422)이 같고, 판 파일의 모양도 같다.
 
-만들어 둔 APK는 `android/apk/`에 있다. 소스를 고치면 다시 만들어 이 폴더의 파일을 바꾼다.
+앱 안에서는 HTTP를 쓰지 않는다. 화면(`android/app/src/standalone/assets/game.js`)이 `DriveTalkBackend.call("POST", "/v1/sessions/…", body)`로 코틀린을 바로 부른다. 덱은 빌드할 때 `backend/deck.json`을 앱에 넣고, 판은 앱 전용 저장 공간의 `data/sessions`에 남는다. 앱이나 헤드유닛을 다시 켜도 하던 판으로 돌아온다.
+
+기기 없이 돌려 보려면 코틀린 백엔드를 HTTP로 띄운다. 러스트 API와 같은 자리(8080)라 화면 서버가 그대로 붙는다.
+
+```sh
+cd android
+./gradlew :backend:devServer
+# 다른 터미널, 저장소 루트
+DRIVE_TALK_API=http://127.0.0.1:8080 ruby bin/drive_talk
+```
+
+러스트 `backend`와 Ruby 화면 서버는 그대로다. PC에서 웹으로 띄울 때는 전처럼 그쪽을 쓴다.
 
 ## API 서버
 

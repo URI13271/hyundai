@@ -1,5 +1,6 @@
-// 서버 없이 도는 드라이브 토크. lib/drive_talk/game.rb와 views/screen.erb를 그대로 옮겼다.
-// 판은 이 기기의 localStorage에 남는다. 앱이나 헤드유닛을 다시 켜도 하던 판으로 돌아온다.
+// 서버 없이 도는 드라이브 토크의 화면. views/screen.erb를 그대로 옮겼다.
+// 판(덱, 좌석, 선택, 집계, 기록)은 앱 안의 코틀린 백엔드가 갖는다. android/backend.
+// 여기에는 스플래시, 마이크 안내, 나가기 확인, 목소리 확인 표시만 있다. lib/drive_talk/remote_game.rb와 같은 자리다.
 (function () {
   "use strict";
 
@@ -10,175 +11,169 @@
     { id: "rear_left", name: "뒷좌석 왼쪽", driver: false },
     { id: "rear_right", name: "뒷좌석 오른쪽", driver: false }
   ];
-  var CARDS = window.DRIVE_TALK_DECK || [];
-  var ROUND = 10;
+  // 홈의 01 여행 카드는 시안 그대로. 실제 10장은 백엔드가 섞어 준다.
+  var SAMPLE = { tag: "여행", title: "여행을 간다면 어디로?", a: "산", b: "바다" };
   var MATCH = ["shuffle", "seats", "read", "answer"];
 
   var app = document.getElementById("app");
   var timers = [];
   var fresh = null;
-  var state = load();
+  var saved = load();
+  var ui = { screen: "splash", mic: saved.mic, leave: false, notice: null };
+  var sid = saved.sid;
+  var view = null;
 
-  // 판
+  // 백엔드
 
-  function seatIds() { return SEATS.map(function (seat) { return seat.id; }); }
-
-  function blank() {
-    return {
-      screen: "splash", mic: null, joined: seatIds(), picks: {},
-      index: 0, deck: [], log: [], leave: false, notice: null
-    };
+  // 돌아오는 것은 { status, body }. status는 HTTP 상태 코드와 같은 뜻이다.
+  function call(method, path, body) {
+    try {
+      return JSON.parse(window.DriveTalkBackend.call(method, path, body ? JSON.stringify(body) : ""));
+    } catch (e) {
+      return { status: 500, body: { error: String(e) } };
+    }
   }
 
   function load() {
-    var start = blank();
     try {
-      var saved = JSON.parse(window.localStorage.getItem(KEY));
-      if (!saved) return start;
-      var open = MATCH.concat("done").indexOf(saved.screen) >= 0;
-      if (open && Array.isArray(saved.deck) && saved.deck.length && Array.isArray(saved.log)) return saved;
-      start.mic = saved.mic === undefined ? null : saved.mic;
+      var found = JSON.parse(window.localStorage.getItem(KEY)) || {};
+      return { sid: found.sid || null, mic: found.mic === undefined ? null : found.mic };
     } catch (e) {
-      return blank();
+      return { sid: null, mic: null };
     }
-    return start;
   }
 
   function save() {
-    try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* 저장 못 해도 판은 이어 간다 */ }
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify({ sid: sid, mic: ui.mic }));
+    } catch (e) { /* 저장 못 해도 판은 백엔드에 있다 */ }
   }
 
-  function inMatch() { return MATCH.indexOf(state.screen) >= 0; }
-  function joined(id) { return state.joined.indexOf(id) >= 0; }
-  function question() { return state.deck[state.index]; }
-  function last() { return state.deck.length > 0 && state.index >= state.deck.length - 1; }
+  // 앱을 다시 켜면 하던 판으로 돌아온다. 판이 없어졌으면 처음부터다.
+  function sync() {
+    if (!sid) return;
+    var res = call("GET", "/v1/sessions/" + sid);
+    if (res.status === 200) view = res.body;
+    else forget();
+  }
+
+  // 거절은 화면을 바꾸지 않는다. 판이 없어졌으면 홈으로 간다.
+  function step(name, body) {
+    if (!sid) return 404;
+    var res = call("POST", "/v1/sessions/" + sid + "/" + name, body);
+    if (res.status === 200) view = res.body;
+    else if (res.status === 404) forget();
+    return res.status;
+  }
+
+  function forget() {
+    sid = null;
+    view = null;
+    resetMatch();
+    ui.screen = "home";
+  }
+
+  function drop() {
+    if (sid) call("DELETE", "/v1/sessions/" + sid);
+    sid = null;
+    view = null;
+  }
+
+  // 판
+
+  function screen() { return view ? view.screen : ui.screen; }
+  function inMatch() { return MATCH.indexOf(screen()) >= 0; }
+  function question() { return view.deck[view.index]; }
+  function joinedCount() { return view.seats.filter(function (seat) { return seat.joined; }).length; }
 
   function currentId() {
-    for (var i = 0; i < state.joined.length; i++) {
-      if (!state.picks[state.joined[i]]) return state.joined[i];
+    for (var i = 0; i < view.seats.length; i++) {
+      if (view.seats[i].joined && !view.seats[i].choice) return view.seats[i].id;
     }
     return null;
   }
 
-  function counts() {
-    var out = { a: 0, b: 0 };
-    state.joined.forEach(function (id) {
-      if (state.picks[id]) out[state.picks[id]] += 1;
-    });
-    return out;
-  }
-
   function seats() {
     var turn = currentId();
-    return SEATS.map(function (seat) {
-      var choice = state.picks[seat.id] || null;
+    return SEATS.map(function (seat, i) {
+      var found = view.seats[i];
       return {
-        id: seat.id, name: seat.name, driver: seat.driver, joined: joined(seat.id),
-        choice: choice, turn: !choice && seat.id === turn
+        id: seat.id, name: seat.name, driver: seat.driver, joined: found.joined,
+        choice: found.choice, turn: !found.choice && seat.id === turn
       };
     });
   }
 
-  function shuffled(cards) {
-    var deck = cards.slice();
-    for (var i = deck.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var held = deck[i];
-      deck[i] = deck[j];
-      deck[j] = held;
-    }
-    return deck.slice(0, ROUND);
-  }
-
   function resetMatch() {
-    state.deck = [];
-    state.index = 0;
-    state.picks = {};
-    state.log = [];
-    state.leave = false;
-    state.notice = null;
-    state.joined = seatIds();
+    drop();
+    ui.leave = false;
+    ui.notice = null;
     fresh = null;
   }
 
   function startShuffle() {
     resetMatch();
-    state.deck = shuffled(CARDS);
-    state.screen = "shuffle";
+    var res = call("POST", "/v1/sessions");
+    if (res.status === 200) {
+      view = res.body;
+      sid = view.id;
+    } else {
+      ui.screen = "home";
+    }
   }
 
   function showMic() {
     if (inMatch()) return;
-    state.leave = false;
-    state.screen = "mic";
+    ui.leave = false;
+    ui.screen = "mic";
   }
 
   var ACTIONS = {
-    "/enter": function () { if (state.screen === "splash") state.screen = "home"; },
-    "/start": function () { if (state.mic === false) showMic(); else startShuffle(); },
+    "/enter": function () { if (screen() === "splash") ui.screen = "home"; },
+    "/start": function () { if (ui.mic === false) showMic(); else startShuffle(); },
     "/mic": showMic,
-    "/mic/open": function () { state.mic = true; startShuffle(); },
-    "/home": function () { resetMatch(); state.screen = "home"; },
+    "/mic/open": function () { ui.mic = true; startShuffle(); },
+    "/home": function () { resetMatch(); ui.screen = "home"; },
     "/ready": function () {
-      if (state.screen === "shuffle") state.screen = "seats";
-      else if (state.screen === "read") state.screen = "answer";
+      if (screen() === "shuffle" || screen() === "read") step("ready");
     },
     "/seat": function (id) {
-      if (state.screen !== "seats" || seatIds().indexOf(id) < 0) return;
-      state.notice = null;
-      var at = state.joined.indexOf(id);
-      if (at >= 0) state.joined.splice(at, 1);
-      else state.joined.push(id);
+      if (screen() !== "seats") return;
+      ui.notice = null;
+      step("seats", { id: id });
     },
     "/begin": function () {
-      if (state.screen !== "seats") return;
-      if (!state.joined.length) {
-        state.notice = "한 자리는 참여해야 시작할 수 있어요.";
-        return;
-      }
-      state.notice = null;
-      state.picks = {};
+      if (screen() !== "seats") return;
+      ui.notice = null;
       fresh = null;
-      state.screen = "read";
+      if (step("begin") === 422) ui.notice = "한 자리는 참여해야 시작할 수 있어요.";
     },
     "/hear": function (choice) {
-      if (state.screen !== "answer" || (choice !== "a" && choice !== "b")) return;
+      if (screen() !== "answer" || (choice !== "a" && choice !== "b")) return;
       var id = currentId();
-      if (!id) return;
-      state.picks[id] = choice;
-      fresh = id;
+      if (id && step("hear", { choice: choice }) === 200) fresh = id;
     },
     "/settle": function () {},
     "/replay": function () {
-      if (state.screen !== "answer") return;
+      if (screen() !== "answer") return;
       fresh = null;
-      state.screen = "read";
+      step("replay");
     },
-    // 다음은 아직 고르지 않은 참여 좌석을 건너뛴다.
     "/next": function () {
-      if (state.screen !== "answer") return;
-      var q = question();
-      var c = counts();
-      state.log.push({ tag: q.tag, title: q.title, a_label: q.a, b_label: q.b, a: c.a, b: c.b });
+      if (screen() !== "answer") return;
       fresh = null;
-      if (last()) {
-        state.screen = "done";
-      } else {
-        state.index += 1;
-        state.picks = {};
-        state.screen = "read";
-      }
+      step("next");
     },
-    "/leave": function () { if (inMatch()) state.leave = true; },
-    "/stay": function () { state.leave = false; },
-    "/quit": function () { resetMatch(); state.screen = "home"; },
+    "/leave": function () { if (inMatch()) ui.leave = true; },
+    "/stay": function () { ui.leave = false; },
+    "/quit": function () { resetMatch(); ui.screen = "home"; },
     "/again": startShuffle
   };
 
   function act(path, value) {
-    var step = ACTIONS[path];
-    if (!step) return;
-    step(value);
+    var run = ACTIONS[path];
+    if (!run) return;
+    run(value);
     render();
   }
 
@@ -204,10 +199,10 @@
   }
 
   function header() {
-    if (state.screen === "splash") return "";
+    if (screen() === "splash") return "";
     var back = "";
-    if (state.screen === "mic" || inMatch()) {
-      back = form(state.screen === "mic" ? "/home" : "/leave",
+    if (screen() === "mic" || inMatch()) {
+      back = form(screen() === "mic" ? "/home" : "/leave",
         '<button class="back" aria-label="뒤로"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 5.5 L8 12 L14.5 18.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>');
     }
     return '<header class="top">' + back + '<p class="brand">드라이브 토크</p></header>';
@@ -218,8 +213,8 @@
     if (seat.id === freshId) return "is-fresh";
     if (seat.choice === "a") return "is-a";
     if (seat.choice === "b") return "is-b";
-    if (seat.turn && state.screen === "answer") return "is-turn";
-    if (state.screen === "read") return "is-wait";
+    if (seat.turn && screen() === "answer") return "is-turn";
+    if (screen() === "read") return "is-wait";
     return "is-in";
   }
 
@@ -228,8 +223,8 @@
     if (seat.id === freshId) return "말하는 중";
     if (seat.choice === "a") return "A 선택";
     if (seat.choice === "b") return "B 선택";
-    if (seat.turn && state.screen === "answer") return "차례예요";
-    if (state.screen === "read") return "대기 중";
+    if (seat.turn && screen() === "answer") return "차례예요";
+    if (screen() === "read") return "대기 중";
     return "참여";
   }
 
@@ -248,7 +243,7 @@
   }
 
   function home() {
-    var q = CARDS[0];
+    var q = SAMPLE;
     return '<section class="home"><div class="copy">' + logo(48, "logo sm") +
       "<h2>밸런스게임</h2>" +
       '<p class="sub">둘 중 하나, 말로 골라요.<br>누가 뭘 골랐는지 파란별로 읽어 줄게요.</p>' +
@@ -277,12 +272,12 @@
   }
 
   function prep() {
-    var n = state.joined.length;
+    var n = joinedCount();
     return '<section class="prep"><div class="copy">' +
       '<span class="pill live">' + WAVE + "마이크 ON · " + n + "명 참여</span>" +
       "<h2>참여하는 자리를 확인해요</h2>" +
       '<p class="sub">자리를 눌러서 참여 / 미참여를 바꿀 수 있어요.</p>' +
-      (state.notice ? '<p class="notice">' + esc(state.notice) + "</p>" : "") +
+      (ui.notice ? '<p class="notice">' + esc(ui.notice) + "</p>" : "") +
       form("/begin", '<button class="btn dark">시작</button>') +
       '<p class="voice">' + MIC + " “시작!” 이라고 말해도 돼요</p></div>" +
       '<aside class="seat-panel"><p class="side-cap">앞 · ' + n + "명 참여</p>" +
@@ -290,29 +285,28 @@
   }
 
   function pill(freshId) {
-    var n = state.joined.length;
     var id = currentId();
     var name = function (seatId) {
       return SEATS.filter(function (seat) { return seat.id === seatId; })[0].name;
     };
     if (freshId) return ["outline", name(freshId) + " 목소리 확인 중…"];
-    if (state.screen === "read") return ["read", "질문 읽는 중… · " + n + "명 참여"];
+    if (screen() === "read") return ["read", "질문 읽는 중… · " + joinedCount() + "명 참여"];
     if (id) return ["live", name(id) + " 차례 · A? B? 말해 주세요"];
     return ["quiet", "모두 골랐어요"];
   }
 
   function play(freshId) {
     var q = question();
-    var c = counts();
+    var c = view.counts;
     var kind = pill(freshId);
-    var locked = state.screen === "read" || freshId ? " disabled" : "";
+    var locked = screen() === "read" || freshId ? " disabled" : "";
     var mark = kind[0] === "live" ? WAVE : kind[0] === "read" ? '<i class="dot"></i>' : '<i class="dot ink"></i>';
-    var progress = Math.round((state.index + 1) * 100 / state.deck.length);
+    var progress = Math.round((view.index + 1) * 100 / view.deck.length);
     var tally = function (count) {
       return '<span class="tally' + (count > 0 ? " is-hot" : "") + '">' + count + "명</span>";
     };
     var options;
-    if (state.screen === "answer") {
+    if (screen() === "answer") {
       options = form("/hear",
         '<button class="opt opt-a" name="choice" value="a"><span class="badge">A</span>' + esc(q.a) + tally(c.a) + "</button>" +
         '<span class="vs">VS</span>' +
@@ -324,11 +318,11 @@
         '<div class="opt opt-b"><span class="badge">B</span>' + esc(q.b) + '<span class="tally">0명</span></div></div>';
     }
     return '<section class="play"><div class="play-top"><div class="meta">' +
-      '<p class="qmeta">Q' + (state.index + 1) + "/" + state.deck.length + " · #" + esc(q.tag) + "</p>" +
+      '<p class="qmeta">Q' + (view.index + 1) + "/" + view.deck.length + " · #" + esc(q.tag) + "</p>" +
       '<div class="bar" aria-hidden="true"><i style="width: ' + progress + '%"></i></div></div>' +
       '<span class="pill is-' + kind[0] + '">' + mark + esc(kind[1]) + "</span></div>" +
       '<div class="play-body"><article class="qcard"><h2 class="qtitle">' + esc(q.title) + "</h2>" + options + "</article>" +
-      '<aside class="seat-panel"><p class="side-cap">앞 · ' + state.joined.length + "명 참여</p>" +
+      '<aside class="seat-panel"><p class="side-cap">앞 · ' + joinedCount() + "명 참여</p>" +
       '<div class="seat-grid">' + seatCells("div", freshId) + "</div></aside></div>" +
       '<footer class="foot"><p class="voice">' + MIC + " “다음!” 이라고 말하면 넘어가요</p>" +
       '<div class="actions">' +
@@ -338,15 +332,16 @@
   }
 
   function done() {
-    var a = state.log.filter(function (row) { return row.a > row.b; }).length;
-    var b = state.log.filter(function (row) { return row.b > row.a; }).length;
+    var log = view.log;
+    var a = log.filter(function (row) { return row.a > row.b; }).length;
+    var b = log.filter(function (row) { return row.b > row.a; }).length;
     var line = a === b ? "오늘은 비겼어요" : a > b ? "A가 " + a + "장으로 앞섰어요" : "B가 " + b + "장으로 앞섰어요";
-    var rounds = state.log.map(function (row) {
+    var rounds = log.map(function (row) {
       return '<article class="round"><b>#' + esc(row.tag) + "</b><span>" + esc(row.title) + "</span>" +
         '<p class="score"><em class="' + (row.a > row.b ? "win-a" : "") + '">' + esc(row.a_label) + " " + row.a + "</em> · " +
         '<em class="' + (row.b > row.a ? "win-b" : "") + '">' + esc(row.b_label) + " " + row.b + "</em></p></article>";
     }).join("");
-    return '<section class="done"><div class="copy"><h2>' + state.log.length + "장을 골랐어요</h2>" +
+    return '<section class="done"><div class="copy"><h2>' + log.length + "장을 골랐어요</h2>" +
       '<p class="sub">' + line + '</p><div class="actions">' +
       form("/again", '<button class="btn dark">다시 하기</button>') +
       form("/home", '<button class="link">홈으로</button>') +
@@ -354,7 +349,7 @@
   }
 
   function leaveDialog() {
-    if (!state.leave) return "";
+    if (!ui.leave) return "";
     return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="leave-title"><div class="dialog">' +
       '<h2 id="leave-title">게임을 끝낼까요?</h2><p>지금 나가면 이 판의 기록은 사라져요.</p>' +
       '<div class="actions">' + form("/stay", '<button class="link">계속하기</button>') +
@@ -376,12 +371,13 @@
 
     var freshId = fresh;
     fresh = null;
-    app.setAttribute("data-screen", state.screen);
-    app.innerHTML = header() + SCREENS[state.screen](freshId) + leaveDialog();
+    var now = screen();
+    app.setAttribute("data-screen", now);
+    app.innerHTML = header() + SCREENS[now](freshId) + leaveDialog();
 
     if (freshId) later(function () { act("/settle"); }, 900);
-    var auto = AUTO[state.screen];
-    if (auto && !state.leave) later(function () { act(auto[0]); }, auto[1]);
+    var auto = AUTO[now];
+    if (auto && !ui.leave) later(function () { act(auto[0]); }, auto[1]);
   }
 
   app.addEventListener("submit", function (event) {
@@ -390,5 +386,6 @@
     act(event.target.getAttribute("action"), by && by.name ? by.value : undefined);
   });
 
+  sync();
   render();
 })();
