@@ -4,6 +4,9 @@
     <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- Pleos 차량 SDK: 좌석에 사람이 앉았는지 읽는다. -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

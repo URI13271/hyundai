@@ -104,6 +104,31 @@
     });
   }
 
+  // 차량 착석 센서(Pleos)가 아는 자리는 앉은 사람대로 참여를 맞춘다.
+  // 센서가 모르는 자리는 손대지 않는다. 자리 화면에서만 맞추고, 그 뒤에는 손으로 바꿀 수 있다.
+  function occupancy() {
+    try {
+      return window.DriveTalkVehicle ? JSON.parse(window.DriveTalkVehicle.occupancy()) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function applyOccupancy() {
+    if (screen() !== "seats") return;
+    var known = occupancy();
+    view.seats.forEach(function (seat) {
+      var sat = known[seat.id];
+      if (typeof sat === "boolean" && sat !== seat.joined) step("seats", { id: seat.id });
+    });
+  }
+
+  window.onSeatOccupancy = function () {
+    if (screen() !== "seats") return;
+    applyOccupancy();
+    render();
+  };
+
   function resetMatch() {
     drop();
     ui.leave = false;
@@ -136,6 +161,7 @@
     "/home": function () { resetMatch(); ui.screen = "home"; },
     "/ready": function () {
       if (screen() === "shuffle" || screen() === "read") step("ready");
+      applyOccupancy();
     },
     "/seat": function (id) {
       if (screen() !== "seats") return;

@@ -33,6 +33,7 @@ private const val URL_KEY = "url"
 class MainActivity : Activity() {
     private lateinit var web: WebView
     private lateinit var prefs: SharedPreferences
+    private var seats: VehicleSeats? = null
     private var setup = false
 
     override fun onCreate(saved: Bundle?) {
@@ -64,6 +65,13 @@ class MainActivity : Activity() {
             }
         }
         attachBackend(this, web)
+        // 차량 착석 정보는 앱 안에 든 화면에만 준다. 밖의 화면 서버에는 열지 않는다.
+        if (BuildConfig.STANDALONE) {
+            seats = VehicleSeats(this, web).also {
+                web.addJavascriptInterface(it, "DriveTalkVehicle")
+                it.start()
+            }
+        }
 
         if (BuildConfig.STANDALONE) {
             showWeb(BUNDLED)
@@ -90,6 +98,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        seats?.stop()
         detach()
         web.destroy()
         super.onDestroy()

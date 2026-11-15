@@ -45,6 +45,8 @@ android {
 
 dependencies {
     "standaloneImplementation"(project(":backend"))
+    // Pleos Connect 차량 SDK. 차량 서비스가 없는 기기에서는 초기화가 실패하고 앱은 그대로 돈다.
+    implementation("ai.pleos.playground:Vehicle:2.3.2")
 }
 
 // 화면의 css와 글꼴, 덱은 저장소의 것을 그대로 가져온다. 여기에 사본을 두지 않는다.
