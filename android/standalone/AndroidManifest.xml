@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 서버 없이 도는 앱. 화면과 판이 앱 안에 있어 권한이 하나도 없다. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.drivetalk">
+
+    <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="드라이브 토크"
+        android:theme="@android:style/Theme.DeviceDefault.DayNight">
+        <activity
+            android:name="drivetalk.MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 안드로이드 오토모티브는 이 표시가 없는 화면을 주행 중에 가린다. -->
+            <meta-data android:name="distractionOptimized" android:value="true" />
+        </activity>
+    </application>
+</manifest>
