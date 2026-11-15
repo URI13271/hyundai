@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::io::Read;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -113,8 +112,7 @@ pub fn deal(mut deck: Vec<Card>) -> Vec<Card> {
 }
 
 pub(crate) fn random_bytes(buf: &mut [u8]) {
-    let mut rng = std::fs::File::open("/dev/urandom").expect("urandom");
-    rng.read_exact(buf).expect("urandom");
+    getrandom::fill(buf).expect("os random");
 }
 
 fn shuffle<T>(items: &mut [T]) {

@@ -1,0 +1,29 @@
+/* 차량 화면에 앱으로 띄울 때. 손가락으로 누르는 화면이라 선택, 확대, 당김을 막는다. */
+html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; }
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 설치해서 띄우면 틀과 설정 줄 없이 화면을 다 쓴다. 테마는 차량의 주야간을 따른다. */
+@media (display-mode: fullscreen), (display-mode: standalone) {
+  body .stage { padding: 0; gap: 0; }
+  body .prefs { display: none; }
+  body.portrait .device,
+  body:not(.portrait) .device {
+    width: 100vw; height: 100dvh; max-width: none;
+    aspect-ratio: auto; border-radius: 0; box-shadow: none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
+/* 안드로이드 앱 안에서도 같다. 앱이 html에 app을 붙인다. */
+html.app body .stage { padding: 0; gap: 0; }
+html.app body .prefs { display: none; }
+html.app body.portrait .device,
+html.app body:not(.portrait) .device {
+  width: 100vw; height: 100dvh; max-width: none;
+  aspect-ratio: auto; border-radius: 0; box-shadow: none;
+}

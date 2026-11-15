@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# 화면과 판 API를 한 번에 띄운다. 화면은 띄운 API에 붙는다.
+# 화면 포트는 PORT(기본 4567), API 포트는 API_PORT(기본 8080).
+
+require "rbconfig"
+require "socket"
+require_relative "../lib/drive_talk"
+
+backend = File.join(DriveTalk::ROOT, "backend")
+port = Integer(ENV.fetch("PORT", "4567"))
+api_port = Integer(ENV.fetch("API_PORT", "8080"))
+api = "http://127.0.0.1:#{api_port}"
+
+listening = lambda do
+  TCPSocket.new("127.0.0.1", api_port).close
+  true
+rescue SystemCallError
+  false
+end
+
+if listening.call
+  puts "판 API  #{api} (이미 떠 있는 것을 쓴다)"
+else
+  built = system("cargo", "build", "--offline", chdir: backend)
+  abort "판 API를 빌드하지 못했어요. Rust(cargo)가 있는지, backend에서 cargo build가 되는지 확인하세요." unless built
+
+  exe = File.join(backend, "target", "debug", "drive-talk#{RbConfig::CONFIG['EXEEXT']}")
+  pid = Process.spawn({ "PORT" => api_port.to_s }, exe, chdir: backend)
+  at_exit do
+    Process.kill("KILL", pid)
+  rescue SystemCallError
+    nil
+  end
+
+  100.times do
+    break if listening.call
+    abort "판 API가 뜨지 못했어요." if Process.wait(pid, Process::WNOHANG)
+
+    sleep 0.1
+  end
+  abort "판 API가 #{api}에서 답하지 않아요." unless listening.call
+end
+
+ENV["DRIVE_TALK_API"] = api
+begin
+  DriveTalk::Server.run(port)
+rescue Interrupt
+  nil
+end
