@@ -45,6 +45,8 @@ ruby android/build.rb
 
 둘 다 디버그 열쇠로 서명한다. 기기에는 `adb install android/build/drive-talk-standalone.apk`로 넣는다.
 
+만들어 둔 APK는 `android/apk/`에 있다. 소스를 고치면 다시 만들어 이 폴더의 파일을 바꾼다.
+
 ## API 서버
 
 덱·판·기록은 `backend`다. 화면 서버는 `DRIVE_TALK_API`가 있으면 이 API를 부르고, 없으면 목 세션이다.
