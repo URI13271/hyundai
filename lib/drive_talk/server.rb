@@ -6,7 +6,9 @@ require "uri"
 
 module DriveTalk
   class Server
-    REASON = { 200 => "OK", 303 => "See Other", 404 => "Not Found", 500 => "Error" }.freeze
+    REASON = {
+      200 => "OK", 303 => "See Other", 404 => "Not Found", 500 => "Error", 502 => "Bad Gateway"
+    }.freeze
 
     def self.run(port)
       $stdout.sync = true
@@ -24,6 +26,9 @@ module DriveTalk
       return unless req
       status, headers, body = dispatch(req)
       write_response(status, headers, body)
+    rescue Api::Unreachable => e
+      warn e.message
+      write_response(502, { "content-type" => "text/html; charset=utf-8" }, api_down(e.message))
     rescue StandardError => e
       warn e.full_message
       write_response(500, { "content-type" => "text/plain; charset=utf-8" }, e.message)
@@ -97,6 +102,7 @@ module DriveTalk
       html = nil
       Store.with(req[:cookies]["dt"]) do |found|
         game = found
+        found.sync(req[:cookies]["sid"]) if remote?(found)
         route(found, req) unless pref_only?(req)
         dest = SCREEN_PATH.fetch(game.screen)
         if req[:method] == "GET" && req[:path] == dest && !pref_only?(req)
@@ -104,9 +110,42 @@ module DriveTalk
         end
       end
       jar << cookie("dt", game.id) if req[:cookies]["dt"] != game.id
+      jar.concat(sid_cookie(game, req[:cookies]["sid"])) if remote?(game)
       return [200, { "content-type" => "text/html; charset=utf-8", "set-cookie" => jar }, html] if html
 
       redirect(SCREEN_PATH.fetch(game.screen), jar)
+    end
+
+    def remote?(game) = game.is_a?(RemoteGame)
+
+    # 판 id는 브라우저에 둔다. 화면 서버를 다시 켜도 같은 판으로 돌아온다.
+    def sid_cookie(game, have)
+      return [cookie("sid", game.sid)] if game.sid && game.sid != have
+      return ["sid=; Path=/; Max-Age=0; SameSite=Lax"] if game.sid.nil? && have
+
+      []
+    end
+
+    def api_down(message)
+      <<~HTML
+        <!DOCTYPE html>
+        <html lang="ko">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>드라이브 토크</title>
+          <link rel="stylesheet" href="/assets/app.css">
+          <link rel="stylesheet" href="/assets/adaptive.css">
+        </head>
+        <body>
+          <div class="stage"><main class="device"><section class="center">
+            <h2>판을 불러오지 못했어요</h2>
+            <p>#{CGI.escapeHTML(message)}</p>
+            <p><a class="link" href="/">다시 시도</a></p>
+          </section></main></div>
+        </body>
+        </html>
+      HTML
     end
 
     def pref_only?(req)

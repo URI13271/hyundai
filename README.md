@@ -23,7 +23,7 @@ ruby /path/to/hyundai/bin/drive_talk
 
 ## API 서버
 
-덱·판·기록은 `backend`다. 화면 서버는 아직 목 세션이다. `DRIVE_TALK_API` 연결은 나중에 한다.
+덱·판·기록은 `backend`다. 화면 서버는 `DRIVE_TALK_API`가 있으면 이 API를 부르고, 없으면 목 세션이다.
 
 ```sh
 cd backend
@@ -38,15 +38,19 @@ cargo run --offline
 화면과 API는 프로세스 둘이다. 터미널도 둘이다. 포트를 따로 쓴다. 한 셸의 `PORT`를 같이 쓰면 둘 다 그 포트에 붙으려다 하나가 죽는다.
 
 ```sh
-# 터미널 1, 저장소 루트. 화면.
-ruby bin/drive_talk
-# http://127.0.0.1:4567
-
-# 터미널 2
+# 터미널 1
 cd backend
 cargo run --offline
 # http://127.0.0.1:8080
+
+# 터미널 2, 저장소 루트. 화면.
+DRIVE_TALK_API=http://127.0.0.1:8080 ruby bin/drive_talk
+# http://127.0.0.1:4567
 ```
 
-브라우저는 4567만 연다. 8080은 판 API다. 화면은 아직 쿠키 목 세션이라, API를 켜 둬도 게임 기록은 그쪽으로 가지 않는다.
+PowerShell은 `$env:DRIVE_TALK_API = "http://127.0.0.1:8080"`을 먼저 치고 `ruby bin/drive_talk`을 친다.
+
+브라우저는 4567만 연다. 8080은 판 API다. `DRIVE_TALK_API`를 주면 덱, 좌석, 선택, 기록은 API에 남는다. 판 id는 브라우저의 `sid` 쿠키라, 화면 서버를 다시 켜도 하던 판으로 돌아온다. API가 꺼져 있으면 화면은 목 세션으로 넘어가지 않고 “판을 불러오지 못했어요”를 보여 준다.
+
+`DRIVE_TALK_API`를 주지 않으면 전처럼 쿠키 목 세션이고, 게임 기록은 API로 가지 않는다.
 
