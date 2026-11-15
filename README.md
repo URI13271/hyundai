@@ -45,7 +45,7 @@ cd android
 ./gradlew :app:assembleClientDebug       # app/build/outputs/apk/client/debug/
 ```
 
-만들어 둔 APK는 `android/apk/`에 있다. 소스를 고치면 다시 만들어 이 폴더의 파일을 바꾼다. 둘 다 디버그 열쇠로 서명한다. 기기에는 `adb install android/apk/drive-talk-standalone.apk`로 넣는다.
+만들어 둔 APK는 `android/apk/`에 있다. 소스를 고치면 다시 만들어 이 폴더의 파일을 바꾼다. 둘 다 디버그 열쇠로 서명한다. 기기에는 `adb install android/apk/JB_drivetalk_release.apk`로 넣는다. 이 파일이 서버 없이 도는 앱(standalone)이고, `drive-talk-client.apk`가 화면 서버에 붙는 앱이다.
 
 ### 코틀린 백엔드
 
